@@ -82,6 +82,20 @@ case "${host_os}" in
 	;;
 esac
 
+
+PKG_CHECK_MODULES([shoes], [shoes >= 0.0.0],, SHOES=no)
+
+if test "x$SHOES" = "xno" ; then
+	ZNC_AUTO_FAIL([SHOES],
+		[shoes not found. Try --disable-shoes.],
+		[shoes was not found and thus disabled])
+else
+	AC_DEFINE([HAVE_SHOES], [1], [Define if shoes is enabled])
+	appendCXX $shoes_CFLAGS
+	appendLib $shoes_LIBS
+	SHOES=yes
+fi
+
 AC_ARG_WITH( [openssl],
 	AS_HELP_STRING([--with-openssl=DIR], [openssl installation prefix]),
 	[OPENSSL=$withval],)
