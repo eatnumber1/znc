@@ -38,3 +38,5 @@ Makefile
 # Compiled Dynamic libraries
 *.so
 
+\.*\.swp
+cscope\.*
