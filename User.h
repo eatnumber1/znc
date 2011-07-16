@@ -69,6 +69,9 @@ public:
 	static bool IsValidUserName(const CString& sUserName);
 	static CString MakeCleanUserName(const CString& sUserName);
 	bool IsLastServer() const;
+	bool SetProxy(const CString& sName);
+	bool SetProxy(const CString& sName, unsigned short uPort);
+	const CServer* GetProxy() const;
 
 	void DelClients();
 	void DelServers();
@@ -160,6 +163,7 @@ public:
 	void SetSkinName(const CString& s) { m_sSkinName = s; }
 	void SetIRCConnectEnabled(bool b) { m_bIRCConnectEnabled = b; }
 	void SetIRCAway(bool b) { m_bIRCAway = b; }
+	void SetProxy(CServer* pProxy);
 	// !Setters
 
 	// Getters
@@ -272,6 +276,7 @@ protected:
 	CString               m_sSkinName;
 
 	CModules*             m_pModules;
+	CServer*              m_pProxy;
 };
 
 #endif // !_USER_H

@@ -831,6 +831,26 @@ void CClient::UserCommand(CString& sLine) {
 			(*it)->ClearBuffer();
 		}
 		PutStatus("All channel buffers have been cleared");
+	} else if (sCommand.Equals("SHOWPROXY")) {
+		if (m_pUser->GetProxy() == NULL) {
+			PutStatus("None");
+		} else {
+			PutStatus(CString(m_pUser->GetProxy()->GetName()) + " " + CString(m_pUser->GetProxy()->GetPort()));
+		}
+	} else if (sCommand.Equals("REMPROXY")) {
+		m_pUser->SetProxy(NULL);
+		PutStatus("Proxy server removed");
+	} else if (sCommand.Equals("SETPROXY")) {
+		CString sServer = sLine.Token(1);
+
+		if (sServer.empty()) {
+			PutStatus("Usage: SetProxy <server> [port]");
+			return;
+		}
+		
+		m_pUser->SetProxy(sLine.Token(1, true));
+		
+		PutStatus("Proxy server set");
 	} else if (sCommand.Equals("SETBUFFER")) {
 		CString sChan = sLine.Token(1);
 
@@ -1232,6 +1252,19 @@ void CClient::HelpUser() {
 		Table.SetCell("Arguments", "[message]");
 		Table.SetCell("Description", "Restart ZNC");
 	}
+
+	Table.AddRow();
+	Table.SetCell("Command", "SetProxy");
+	Table.SetCell("Arguments", "<server>");
+	Table.SetCell("Description", "Set the proxy server used to connect");
+	
+	Table.AddRow();
+	Table.SetCell("Command", "RemProxy");
+	Table.SetCell("Description", "Remove the proxy server used to connect");
+	
+	Table.AddRow();
+	Table.SetCell("Command", "ShowProxy");
+	Table.SetCell("Description", "Show the current proxy server");
 
 	PutStatus(Table);
 }

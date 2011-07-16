@@ -670,6 +670,14 @@ public:
 	//! Returns a reference to the host name
 	const CS_STRING & GetHostName() const;
 	void SetHostName( const CS_STRING & sHostname );
+	
+	//! Returns a reference to the socks proxy address
+	const CS_STRING & GetSocksAddr() const;
+	void SetSocksAddr( const CS_STRING & sSocksAddr );
+	
+	//! Returns the socks proxy port
+	u_short GetSocksPort();
+	void SetSocksPort( u_short iSocksPort );
 
 
 	//! Gets the starting time of this socket
@@ -948,7 +956,11 @@ public:
 			return( false );
 
 		m_address.SinFamily();
-		m_address.SinPort( m_uPort );
+		if( m_sSocksAddr == "" ) {
+			m_address.SinPort( m_uPort );
+		} else {
+			m_address.SinPort( m_uSocksPort );
+		}
 
 		return( true );
 	}
@@ -1015,12 +1027,12 @@ private:
 	Csock( const Csock & cCopy ) {}
 
 	// NOTE! if you add any new members, be sure to add them to Copy()
-	u_short		m_uPort, m_iRemotePort, m_iLocalPort;
+	u_short		m_uPort, m_iRemotePort, m_iLocalPort, m_uSocksPort;
 	cs_sock_t	m_iReadSock, m_iWriteSock;
 	int m_itimeout, m_iConnType, m_iMethod, m_iTcount;
 	bool		m_bssl, m_bIsConnected, m_bBLOCK;
 	bool		m_bsslEstablished, m_bEnableReadLine, m_bPauseRead;
-	CS_STRING	m_shostname, m_sbuffer, m_sSockName, m_sPemFile, m_sCipherType, m_sParentName;
+	CS_STRING	m_shostname, m_sbuffer, m_sSockName, m_sPemFile, m_sCipherType, m_sParentName, m_sSocksAddr;
 	CS_STRING	m_sSend, m_sPemPass, m_sLocalIP, m_sRemoteIP;
 	ECloseType	m_eCloseType;
 
@@ -1093,7 +1105,9 @@ public:
 	const CS_STRING & GetHostname() const { return( m_sHostname ); }
 	const CS_STRING & GetSockName() const { return( m_sSockName ); }
 	const CS_STRING & GetBindHost() const { return( m_sBindHost ); }
+	const CS_STRING & GetSocksAddr() const { return( m_sSocksAddr ); }
 	u_short GetPort() const { return( m_iPort ); }
+	u_short GetSocksPort() const { return( m_iSocksPort ); }
 	int GetTimeout() const { return( m_iTimeout ); }
 	bool GetIsSSL() const { return( m_bIsSSL ); }
 	CSSockAddr::EAFRequire GetAFRequire() const { return( m_iAFrequire ); }
@@ -1118,6 +1132,10 @@ public:
 	void SetIsSSL( bool b ) { m_bIsSSL = b; }
 	//! sets the AF family type required
 	void SetAFRequire( CSSockAddr::EAFRequire iAFRequire ) { m_iAFrequire = iAFRequire; }
+	//! sets the address of the socks server to connect to
+	void SetSocksAddr( const CS_STRING & s ) { m_sSocksAddr = s; }
+	//! sets the port of the socks server to connect to
+	void SetSocksPort( u_short i ) { m_iSocksPort = i; }
 
 #ifdef HAVE_LIBSSL
 	//! set the cipher strength to use, default is HIGH
@@ -1129,8 +1147,8 @@ public:
 #endif /* HAVE_LIBSSL */
 
 protected:
-	CS_STRING	m_sHostname, m_sSockName, m_sBindHost;
-	u_short		m_iPort;
+	CS_STRING	m_sHostname, m_sSockName, m_sBindHost, m_sSocksAddr;
+	u_short		m_iPort, m_iSocksPort;
 	int			m_iTimeout;
 	bool		m_bIsSSL;
 	CSSockAddr::EAFRequire	m_iAFrequire;
@@ -1324,6 +1342,12 @@ public:
 			pcSock->SetHostName( cCon.GetHostname() );
 			pcSock->SetPort( cCon.GetPort() );
 			pcSock->SetTimeout( cCon.GetTimeout() );
+		}
+	
+		if( cCon.GetSocksAddr() != "" ) {
+			pcSock->SetSocksAddr( cCon.GetSocksAddr() );
+			// TODO: Check for valid socks port
+			pcSock->SetSocksPort( cCon.GetSocksPort() );
 		}
 
 		if( cCon.GetAFRequire() != CSSockAddr::RAF_ANY )

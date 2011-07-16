@@ -55,6 +55,7 @@ CUser::CUser(const CString& sUserName)
 	// set path that depends on the user name:
 	m_sUserPath = CZNC::Get().GetUserPath() + "/" + m_sUserName;
 
+	m_pProxy = NULL;
 	m_pIRCSock = NULL;
 	m_fTimezoneOffset = 0;
 	m_sNick = m_sCleanUserName;
@@ -100,6 +101,9 @@ CUser::~CUser() {
 	}
 
 	CZNC::Get().GetManager().DelCronByAddr(m_pUserTimer);
+	
+	if (m_pProxy != NULL)
+		delete m_pProxy;
 }
 
 template<class T>
@@ -156,6 +160,12 @@ bool CUser::ParseConfig(CConfig* pConfig, CString& sError) {
 		CString sValue;
 		if (pConfig->FindStringEntry(BoolOptions[i].name, sValue))
 			(this->*BoolOptions[i].pSetter)(sValue.ToBool());
+	}
+	
+	{
+		CString sValue;
+		if (pConfig->FindStringEntry("proxy", sValue))
+			CUtils::PrintStatus(this->SetProxy(sValue));
 	}
 
 	VCString vsList;
@@ -579,6 +589,8 @@ bool CUser::Clone(const CUser& User, CString& sErrorRet, bool bCloneChans) {
 	SetBufferCount(User.GetBufferCount(), true);
 	SetJoinTries(User.JoinTries());
 	SetMaxJoins(User.MaxJoins());
+	if (User.GetProxy() != NULL)
+		SetProxy(User.GetProxy()->GetName(), User.GetProxy()->GetPort());
 
 	// Allowed Hosts
 	m_ssAllowedHosts.clear();
@@ -878,6 +890,8 @@ bool CUser::WriteConfig(CFile& File) {
 	PrintLine(File, "JoinTries", CString(m_uMaxJoinTries));
 	PrintLine(File, "MaxJoins", CString(m_uMaxJoins));
 	PrintLine(File, "IRCConnectEnabled", CString(GetIRCConnectEnabled()));
+	if (GetProxy() != NULL)
+		PrintLine(File, "Proxy", CString(GetProxy()->GetString()));
 	File.Write("\n");
 
 	// Allow Hosts
@@ -1085,6 +1099,45 @@ bool CUser::DelServer(const CString& sName, unsigned short uPort, const CString&
 	}
 
 	return false;
+}
+
+void CUser::SetProxy(CServer* pProxy) {
+	m_pProxy = pProxy;
+}
+
+bool CUser::SetProxy(const CString& sName) {
+	if (sName.empty()) {
+		return false;
+	}
+
+	CString sLine = sName;
+	sLine.Trim();
+
+	CString sHost = sLine.Token(0);
+	CString sPort = sLine.Token(1);
+
+	unsigned short uPort = sPort.ToUShort();
+
+	return SetProxy(sHost, uPort);
+}
+
+bool CUser::SetProxy(const CString& sName, unsigned short uPort) {
+	if (sName.empty()) {
+		return false;
+	}
+
+	if( m_pProxy != NULL )
+		delete m_pProxy;
+	
+	if (!uPort) uPort = 1080;
+
+	SetProxy(new CServer(sName, uPort));
+
+	return true;
+}
+
+const CServer* CUser::GetProxy() const {
+	return m_pProxy;
 }
 
 bool CUser::AddServer(const CString& sName) {

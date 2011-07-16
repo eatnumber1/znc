@@ -142,7 +142,15 @@ bool CZNC::ConnectUser(CUser *pUser) {
 		return false;
 	);
 
-	if (!m_Manager.Connect(pServer->GetName(), pServer->GetPort(), sSockName, 120, bSSL, pUser->GetBindHost(), pIRCSock)) {
+	const CServer *pSocksServer = pUser->GetProxy();
+	CString sSocksAddr = "";
+	unsigned int uSocksPort = 0;
+	if( pSocksServer != NULL ) {
+		sSocksAddr = pSocksServer->GetName();
+		uSocksPort = pSocksServer->GetPort();
+	}
+
+	if (!m_Manager.Connect(pServer->GetName(), pServer->GetPort(), sSockName, 120, bSSL, pUser->GetBindHost(), pIRCSock, sSocksAddr, uSocksPort)) {
 		pUser->PutStatus("Unable to connect. (Bad host?)");
 	}
 

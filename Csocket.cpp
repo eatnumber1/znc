@@ -43,6 +43,10 @@
 
 #include <list>
 
+extern "C" {
+#include <shoes.h>
+}
+
 #define CS_SRANDBUFFER 128
 
 using namespace std;
@@ -691,6 +695,7 @@ void Csock::Copy( const Csock & cCopy )
 	m_bEnableReadLine	= cCopy.m_bEnableReadLine;
 	m_bPauseRead		= cCopy.m_bPauseRead;
 	m_shostname		= cCopy.m_shostname;
+	m_sSocksAddr	= cCopy.m_sSocksAddr;
 	m_sbuffer		= cCopy.m_sbuffer;
 	m_sSockName		= cCopy.m_sSockName;
 	m_sPemFile		= cCopy.m_sPemFile;
@@ -887,7 +892,21 @@ bool Csock::Connect( const CS_STRING & sBindHost, bool bSkipSetup )
 		return( false );
 	}
 
-	if ( m_bBLOCK )
+	if ( m_sSocksAddr != "" )
+	{
+		set_blocking( m_iReadSock );
+		struct shoes_conn_t *conn = shoes_alloc();
+		shoes_set_version(conn, SOCKS_VERSION_5);
+		socks_method_e methods[] = { SOCKS_METHOD_NONE };
+		shoes_set_methods(conn, methods, 1);
+		shoes_set_command(conn, SOCKS_CMD_CONNECT);
+		shoes_set_hostname(conn, m_shostname.c_str(), m_uPort);
+		shoes_handshake(conn, m_iReadSock);
+		shoes_free(conn);
+		if ( !m_bBLOCK )
+			set_non_blocking( m_iReadSock );
+	}
+	else if ( m_bBLOCK )
 	{
 		set_blocking( m_iReadSock );
 	}
@@ -1825,6 +1844,8 @@ const CS_STRING & Csock::GetSockName() const { return( m_sSockName ); }
 void Csock::SetSockName( const CS_STRING & sName ) { m_sSockName = sName; }
 const CS_STRING & Csock::GetHostName() const { return( m_shostname ); }
 void Csock::SetHostName( const CS_STRING & sHostname ) { m_shostname = sHostname; }
+const CS_STRING & Csock::GetSocksAddr() const { return( m_sSocksAddr ); }
+void Csock::SetSocksAddr( const CS_STRING & sSocksAddr ) { m_sSocksAddr = sSocksAddr; }
 unsigned long long Csock::GetStartTime() const { return( m_iStartTime ); }
 void Csock::ResetStartTime() { m_iStartTime = 0; }
 unsigned long long Csock::GetBytesRead() const { return( m_iBytesRead ); }
@@ -1911,6 +1932,9 @@ u_short Csock::GetLocalPort()
 
 	return( m_iLocalPort );
 }
+
+u_short Csock::GetSocksPort() { return( m_uPort ); }
+void Csock::SetSocksPort( u_short iPort ) { m_uSocksPort = iPort; }
 
 u_short Csock::GetPort() { return( m_uPort ); }
 void Csock::SetPort( u_short iPort ) { m_uPort = iPort; }
@@ -2338,6 +2362,10 @@ int Csock::DNSLookup( EDNSLType eDNSLType )
 		}
 #endif /* HAVE_IPV6 */
 	}
+	else if ( m_sSocksAddr != "" )
+	{
+		iRet = GetAddrInfo( m_sSocksAddr, m_address );
+	}
 	else
 	{
 		iRet = GetAddrInfo( m_shostname, m_address );
@@ -2465,6 +2493,7 @@ void Csock::Init( const CS_STRING & sHostname, u_short uPort, int itimeout )
 	m_bIsConnected = false;
 	m_uPort = uPort;
 	m_shostname = sHostname;
+	m_sSocksAddr = "";
 	m_sbuffer.clear();
 	m_eCloseType = CLT_DONT;
 	m_bBLOCK = true;
