@@ -895,13 +895,38 @@ bool Csock::Connect( const CS_STRING & sBindHost, bool bSkipSetup )
 	if ( m_sSocksAddr != "" )
 	{
 		set_blocking( m_iReadSock );
-		struct shoes_conn_t *conn = shoes_alloc();
-		shoes_set_version(conn, SOCKS_VERSION_5);
+		struct shoes_conn_t *conn;
+		shoes_rc_e rc;
+		if( (rc = shoes_alloc(&conn)) != SHOES_ERR_NOERR ) {
+			CS_DEBUG( "Shoes failure. " << shoes_strerror(rc) );
+			return( false );
+		}
+		if( (rc = shoes_set_version(conn, SOCKS_VERSION_5)) != SHOES_ERR_NOERR ) {
+			shoes_free(conn);
+			CS_DEBUG( "Shoes failure. " << shoes_strerror(rc) );
+			return( false );
+		}
 		socks_method_e methods[] = { SOCKS_METHOD_NONE };
-		shoes_set_methods(conn, methods, 1);
-		shoes_set_command(conn, SOCKS_CMD_CONNECT);
-		shoes_set_hostname(conn, m_shostname.c_str(), m_uPort);
-		shoes_handshake(conn, m_iReadSock);
+		if( (rc = shoes_set_methods(conn, methods, 1)) != SHOES_ERR_NOERR ) {
+			shoes_free(conn);
+			CS_DEBUG( "Shoes failure. " << shoes_strerror(rc) );
+			return( false );
+		}
+		if( (rc = shoes_set_command(conn, SOCKS_CMD_CONNECT)) != SHOES_ERR_NOERR ) {
+			shoes_free(conn);
+			CS_DEBUG( "Shoes failure. " << shoes_strerror(rc) );
+			return( false );
+		}
+		if( (rc = shoes_set_hostname(conn, m_shostname.c_str(), m_uPort)) != SHOES_ERR_NOERR ) {
+			shoes_free(conn);
+			CS_DEBUG( "Shoes failure. " << shoes_strerror(rc) );
+			return( false );
+		}
+		if( (rc = shoes_handshake(conn, m_iReadSock)) != SHOES_ERR_NOERR ) {
+			shoes_free(conn);
+			CS_DEBUG( "SOCKS handshake failure. " << shoes_strerror(rc) );
+			return( false );
+		}
 		shoes_free(conn);
 		if ( !m_bBLOCK )
 			set_non_blocking( m_iReadSock );
