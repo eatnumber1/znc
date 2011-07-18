@@ -837,7 +837,7 @@ void CClient::UserCommand(CString& sLine) {
 		} else {
 			PutStatus(CString(m_pUser->GetProxy()->GetName()) + " " + CString(m_pUser->GetProxy()->GetPort()));
 		}
-	} else if (sCommand.Equals("REMPROXY")) {
+	} else if (sCommand.Equals("CLEARPROXY")) {
 		m_pUser->SetProxy(NULL);
 		PutStatus("Proxy server removed");
 	} else if (sCommand.Equals("SETPROXY")) {
@@ -1256,11 +1256,11 @@ void CClient::HelpUser() {
 	Table.AddRow();
 	Table.SetCell("Command", "SetProxy");
 	Table.SetCell("Arguments", "<server> [port]");
-	Table.SetCell("Description", "Set the proxy server used to connect");
+	Table.SetCell("Description", "Set the current proxy server");
 	
 	Table.AddRow();
-	Table.SetCell("Command", "RemProxy");
-	Table.SetCell("Description", "Remove the proxy server used to connect");
+	Table.SetCell("Command", "ClearProxy");
+	Table.SetCell("Description", "Clear the current proxy server");
 	
 	Table.AddRow();
 	Table.SetCell("Command", "ShowProxy");
