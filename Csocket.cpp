@@ -658,6 +658,20 @@ void Csock::CloseSocksFD()
 	} else if( m_iReadSock != CS_INVALID_SOCK )
 		CS_CLOSE( m_iReadSock );
 
+	shoes_rc_e rc;
+	if( m_shoesConn != NULL ) {
+		if( (rc = shoes_conn_free(m_shoesConn)) != SHOES_ERR_NOERR ) {
+			CS_DEBUG( "shoes_conn_free: " << shoes_strerror(rc) );
+		}
+		m_shoesConn = NULL;
+	}
+	if( m_shoesConnstate != NULL ) {
+		if( m_shoesConnstate != NULL && (rc = shoes_connstate_free(m_shoesConnstate)) != SHOES_ERR_NOERR ) {
+			CS_DEBUG( "shoes_connstate_free: " << shoes_strerror(rc) );
+		}
+		m_shoesConnstate = NULL;
+	}
+
 	m_iReadSock = CS_INVALID_SOCK;
 	m_iWriteSock = CS_INVALID_SOCK;
 }
@@ -706,6 +720,8 @@ void Csock::Copy( const Csock & cCopy )
 	m_sLocalIP		= cCopy.m_sLocalIP;
 	m_sRemoteIP		= cCopy.m_sRemoteIP;
 	m_eCloseType	= cCopy.m_eCloseType;
+	m_shoesConn	    = cCopy.m_shoesConn;
+	m_shoesConnstate    = cCopy.m_shoesConnstate;
 
 	m_iMaxMilliSeconds	= cCopy.m_iMaxMilliSeconds;
 	m_iLastSendTime		= cCopy.m_iLastSendTime;
@@ -894,44 +910,36 @@ bool Csock::Connect( const CS_STRING & sBindHost, bool bSkipSetup )
 
 	if ( m_sSocksAddr != "" )
 	{
-		set_blocking( m_iReadSock );
-		struct shoes_conn_t *conn;
 		shoes_rc_e rc;
-		if( (rc = shoes_alloc(&conn)) != SHOES_ERR_NOERR ) {
+		if( (rc = shoes_conn_alloc(&m_shoesConn)) != SHOES_ERR_NOERR ) {
 			CS_DEBUG( "Shoes failure. " << shoes_strerror(rc) );
 			return( false );
 		}
-		if( (rc = shoes_set_version(conn, SOCKS_VERSION_5)) != SHOES_ERR_NOERR ) {
-			shoes_free(conn);
+		if( (rc = shoes_set_version(m_shoesConn, SOCKS_VERSION_5)) != SHOES_ERR_NOERR ) {
 			CS_DEBUG( "Shoes failure. " << shoes_strerror(rc) );
 			return( false );
 		}
 		socks_method_e methods[] = { SOCKS_METHOD_NONE };
-		if( (rc = shoes_set_methods(conn, methods, 1)) != SHOES_ERR_NOERR ) {
-			shoes_free(conn);
+		if( (rc = shoes_set_methods(m_shoesConn, methods, 1)) != SHOES_ERR_NOERR ) {
 			CS_DEBUG( "Shoes failure. " << shoes_strerror(rc) );
 			return( false );
 		}
-		if( (rc = shoes_set_command(conn, SOCKS_CMD_CONNECT)) != SHOES_ERR_NOERR ) {
-			shoes_free(conn);
+		if( (rc = shoes_set_command(m_shoesConn, SOCKS_CMD_CONNECT)) != SHOES_ERR_NOERR ) {
 			CS_DEBUG( "Shoes failure. " << shoes_strerror(rc) );
 			return( false );
 		}
-		if( (rc = shoes_set_hostname(conn, m_shostname.c_str(), m_uPort)) != SHOES_ERR_NOERR ) {
-			shoes_free(conn);
+		if( (rc = shoes_set_hostname(m_shoesConn, m_shostname.c_str(), htons(m_uPort))) != SHOES_ERR_NOERR ) {
 			CS_DEBUG( "Shoes failure. " << shoes_strerror(rc) );
 			return( false );
 		}
-		if( (rc = shoes_handshake(conn, m_iReadSock)) != SHOES_ERR_NOERR ) {
-			shoes_free(conn);
-			CS_DEBUG( "SOCKS handshake failure. " << shoes_strerror(rc) );
+		if( (rc = shoes_connstate_alloc(&m_shoesConnstate)) != SHOES_ERR_NOERR ) {
+			CS_DEBUG( "Shoes failure. " << shoes_strerror(rc) );
 			return( false );
 		}
-		shoes_free(conn);
-		if ( !m_bBLOCK )
-			set_non_blocking( m_iReadSock );
+		if( !SocksHandshake() ) return( false );
 	}
-	else if ( m_bBLOCK )
+
+	if ( m_bBLOCK )
 	{
 		set_blocking( m_iReadSock );
 	}
@@ -942,6 +950,41 @@ bool Csock::Connect( const CS_STRING & sBindHost, bool bSkipSetup )
 	}
 
 	return( true );
+}
+
+bool Csock::SocksHandshake()
+{
+	if( m_iReadSock != m_iWriteSock ) {
+		CS_DEBUG( "Underlying SOCKS library does not support different read and write sockets." );
+		return( false );
+	}
+	shoes_rc_e rc;
+	if( (rc = shoes_handshake(m_shoesConn, m_shoesConnstate, m_iReadSock)) != SHOES_ERR_NOERR ) {
+		if( rc != SHOES_ERR_ERRNO || ( errno != EAGAIN && errno != EWOULDBLOCK ) ) {
+			return( false );
+		}
+	}
+	return( true );
+}
+
+bool Csock::IsSocksHandshakeComplete()
+{
+	return shoes_is_connected(m_shoesConnstate);
+}
+
+bool Csock::SocksNeedsRead()
+{
+	return shoes_needs_read(m_shoesConnstate);
+}
+
+bool Csock::SocksNeedsWrite()
+{
+	return shoes_needs_write(m_shoesConnstate);
+}
+
+bool Csock::IsSocksProxied()
+{
+	return m_sSocksAddr != "";
 }
 
 int Csock::WriteSelect()
@@ -2545,6 +2588,8 @@ void Csock::Init( const CS_STRING & sHostname, u_short uPort, int itimeout )
 	m_bIsIPv6 = false;
 	m_bSkipConnect = false;
 	m_iLastCheckTimeoutTime = 0;
+	m_shoesConn = NULL;
+	m_shoesConnstate = NULL;
 #ifdef HAVE_C_ARES
 	m_pARESChannel = NULL;
 	m_pCurrAddr = NULL;

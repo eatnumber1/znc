@@ -1022,6 +1022,12 @@ public:
 	ares_channel GetAresChannel() { return( m_pARESChannel ); }
 #endif /* HAVE_C_ARES */
 
+	bool SocksHandshake();
+	bool IsSocksProxied();
+	bool IsSocksHandshakeComplete();
+	bool SocksNeedsWrite();
+	bool SocksNeedsRead();
+
 private:
 	//! making private for safety
 	Csock( const Csock & cCopy ) {}
@@ -1035,6 +1041,8 @@ private:
 	CS_STRING	m_shostname, m_sbuffer, m_sSockName, m_sPemFile, m_sCipherType, m_sParentName, m_sSocksAddr;
 	CS_STRING	m_sSend, m_sPemPass, m_sLocalIP, m_sRemoteIP;
 	ECloseType	m_eCloseType;
+	struct shoes_conn_t *m_shoesConn;
+	struct shoes_connstate_t *m_shoesConnstate;
 
 	unsigned long long	m_iMaxMilliSeconds, m_iLastSendTime, m_iBytesRead, m_iBytesWritten, m_iStartTime;
 	unsigned int		m_iMaxBytes, m_iMaxStoredBufferLength, m_iTimeoutType;
@@ -1529,62 +1537,73 @@ public:
 
 					if ( iErrno == SUCCESS )
 					{
-						// read in data
-						// if this is a
-						int iLen = 0;
-
-						if ( pcSock->GetSSL() )
-							iLen = pcSock->GetPending();
-
-						if ( iLen <= 0 )
-							iLen = CS_BLOCKSIZE;
-
-						CSCharBuffer cBuff( iLen );
-
-						cs_ssize_t bytes = pcSock->Read( cBuff(), iLen );
-
-						if ( bytes != T::READ_TIMEDOUT && bytes != T::READ_CONNREFUSED && bytes != T::READ_ERR && !pcSock->IsConnected() )
+						if( pcSock->IsSocksProxied() && !pcSock->IsSocksHandshakeComplete() )
 						{
-							pcSock->SetIsConnected( true );
-							pcSock->Connected();
-						}
-
-						switch( bytes )
-						{
-							case T::READ_EOF:
+							if( pcSock->SocksNeedsRead() )
 							{
-								DelSockByAddr( pcSock );
-								break;
+								if( !pcSock->SocksHandshake() )
+									DelSockByAddr( pcSock );
+							} else
+								continue;
+						} else
+						{
+							// read in data
+							// if this is a
+							int iLen = 0;
+
+							if ( pcSock->GetSSL() )
+								iLen = pcSock->GetPending();
+
+							if ( iLen <= 0 )
+								iLen = CS_BLOCKSIZE;
+
+							CSCharBuffer cBuff( iLen );
+
+							cs_ssize_t bytes = pcSock->Read( cBuff(), iLen );
+
+							if ( bytes != T::READ_TIMEDOUT && bytes != T::READ_CONNREFUSED && bytes != T::READ_ERR && !pcSock->IsConnected() )
+							{
+								pcSock->SetIsConnected( true );
+								pcSock->Connected();
 							}
 
-							case T::READ_ERR:
+							switch( bytes )
 							{
-								pcSock->SockError( GetSockError() );
-								DelSockByAddr( pcSock );
-								break;
-							}
+								case T::READ_EOF:
+								{
+									DelSockByAddr( pcSock );
+									break;
+								}
 
-							case T::READ_EAGAIN:
-								break;
+								case T::READ_ERR:
+								{
+									pcSock->SockError( GetSockError() );
+									DelSockByAddr( pcSock );
+									break;
+								}
 
-							case T::READ_CONNREFUSED:
-								pcSock->ConnectionRefused();
-								DelSockByAddr( pcSock );
-								break;
+								case T::READ_EAGAIN:
+									break;
 
-							case T::READ_TIMEDOUT:
-								pcSock->Timeout();
-								DelSockByAddr( pcSock );
-								break;
+								case T::READ_CONNREFUSED:
+									pcSock->ConnectionRefused();
+									DelSockByAddr( pcSock );
+									break;
 
-							default:
-							{
-								if ( T::TMO_READ & pcSock->GetTimeoutType() )
-									pcSock->ResetTimer();	// reset the timeout timer
+								case T::READ_TIMEDOUT:
+									pcSock->Timeout();
+									DelSockByAddr( pcSock );
+									break;
 
-								pcSock->ReadData( cBuff(), bytes );	// Call ReadData() before PushBuff() so that it is called before the ReadLine() event - LD  07/18/05
-								pcSock->PushBuff( cBuff(), bytes );
-								break;
+								default:
+								{
+									if ( T::TMO_READ & pcSock->GetTimeoutType() )
+										pcSock->ResetTimer();	// reset the timeout timer
+
+									pcSock->ReadData( cBuff(), bytes );	// Call ReadData() before PushBuff() so that it is called before the ReadLine() event - LD  07/18/05
+									pcSock->PushBuff( cBuff(), bytes );
+									break;
+								}
 							}
 						}
 
