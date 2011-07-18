@@ -1255,7 +1255,7 @@ void CClient::HelpUser() {
 
 	Table.AddRow();
 	Table.SetCell("Command", "SetProxy");
-	Table.SetCell("Arguments", "<server>");
+	Table.SetCell("Arguments", "<server> [port]");
 	Table.SetCell("Description", "Set the proxy server used to connect");
 	
 	Table.AddRow();
