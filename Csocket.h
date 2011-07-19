@@ -1540,6 +1540,12 @@ public:
 
 						DelSock( a-- );
 						continue;
+					} else
+					{
+#ifdef HAVE_SOCKS
+						if ( pcSock->IsSocksProxied() && !pcSock->IsSocksHandshakeComplete() )
+							continue;
+#endif /* HAVE_SOCKS */
 					}
 				}
 			}

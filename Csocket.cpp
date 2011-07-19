@@ -1443,14 +1443,8 @@ bool Csock::ConnectSSL( const CS_STRING & sBindhost )
 {
 #ifdef HAVE_LIBSSL
 	if ( m_iReadSock == CS_INVALID_SOCK )
-	{
 		if ( !Connect( sBindhost ) )
 			return( false );
-	}
-#ifdef HAVE_SHOES
-	if ( IsSocksProxied() && !IsSocksHandshakeComplete() && !SocksHandshake() )
-		return( false );
-#endif /* HAVE_SHOES */
 	if ( !m_ssl )
 		if ( !SSLClientSetup() )
 			return( false );
@@ -1461,6 +1455,16 @@ bool Csock::ConnectSSL( const CS_STRING & sBindhost )
 	{
 		set_non_blocking( m_iReadSock );
 	}
+
+#ifdef HAVE_SHOES
+	if ( IsSocksProxied() && !IsSocksHandshakeComplete() )
+	{
+		if( !SocksHandshake() )
+			return( false );
+		if( !IsSocksHandshakeComplete() )
+			return( true );
+	}
+#endif /* HAVE_SHOES */
 
 	int iErr = SSL_connect( m_ssl );
 	if ( iErr != 1 )
@@ -1569,6 +1573,10 @@ bool Csock::Write( const char *data, size_t len )
 #ifdef HAVE_LIBSSL
 	if ( m_bssl )
 	{
+#ifdef HAVE_SHOES
+		if ( IsSocksProxied() && !IsSocksHandshakeComplete() )
+			return true;
+#endif /* HAVE_SHOES */
 
 		if ( m_sSSLBuffer.empty() ) // on retrying to write data, ssl wants the data in the SAME spot and the SAME size
 			m_sSSLBuffer.append( m_sSend.data(), iBytesToSend );
