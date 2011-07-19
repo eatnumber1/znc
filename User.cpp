@@ -55,7 +55,9 @@ CUser::CUser(const CString& sUserName)
 	// set path that depends on the user name:
 	m_sUserPath = CZNC::Get().GetUserPath() + "/" + m_sUserName;
 
+#ifdef HAVE_SHOES
 	m_pProxy = NULL;
+#endif /* HAVE_SHOES */
 	m_pIRCSock = NULL;
 	m_fTimezoneOffset = 0;
 	m_sNick = m_sCleanUserName;
@@ -102,8 +104,10 @@ CUser::~CUser() {
 
 	CZNC::Get().GetManager().DelCronByAddr(m_pUserTimer);
 	
+#ifdef HAVE_SHOES
 	if (m_pProxy != NULL)
 		delete m_pProxy;
+#endif /* HAVE_SHOES */
 }
 
 template<class T>
@@ -162,11 +166,13 @@ bool CUser::ParseConfig(CConfig* pConfig, CString& sError) {
 			(this->*BoolOptions[i].pSetter)(sValue.ToBool());
 	}
 	
+#ifdef HAVE_SHOES
 	{
 		CString sValue;
 		if (pConfig->FindStringEntry("proxy", sValue))
 			CUtils::PrintStatus(this->SetProxy(sValue));
 	}
+#endif /* HAVE_SHOES */
 
 	VCString vsList;
 	VCString::const_iterator vit;
@@ -595,8 +601,10 @@ bool CUser::Clone(const CUser& User, CString& sErrorRet, bool bCloneChans) {
 	SetBufferCount(User.GetBufferCount(), true);
 	SetJoinTries(User.JoinTries());
 	SetMaxJoins(User.MaxJoins());
+#ifdef HAVE_SHOES
 	if (User.GetProxy() != NULL)
 		SetProxy(User.GetProxy()->GetName(), User.GetProxy()->GetPort());
+#endif /* HAVE_SHOES */
 
 	// Allowed Hosts
 	m_ssAllowedHosts.clear();
@@ -896,8 +904,10 @@ bool CUser::WriteConfig(CFile& File) {
 	PrintLine(File, "JoinTries", CString(m_uMaxJoinTries));
 	PrintLine(File, "MaxJoins", CString(m_uMaxJoins));
 	PrintLine(File, "IRCConnectEnabled", CString(GetIRCConnectEnabled()));
+#ifdef HAVE_SHOES
 	if (GetProxy() != NULL)
 		PrintLine(File, "Proxy", CString(GetProxy()->GetString()));
+#endif /* HAVE_SHOES */
 	File.Write("\n");
 
 	// Allow Hosts
@@ -1107,6 +1117,7 @@ bool CUser::DelServer(const CString& sName, unsigned short uPort, const CString&
 	return false;
 }
 
+#ifdef HAVE_SHOES
 void CUser::SetProxy(CServer* pProxy) {
 	m_pProxy = pProxy;
 }
@@ -1145,6 +1156,7 @@ bool CUser::SetProxy(const CString& sName, unsigned short uPort) {
 const CServer* CUser::GetProxy() const {
 	return m_pProxy;
 }
+#endif /* HAVE_SHOES */
 
 bool CUser::AddServer(const CString& sName) {
 	if (sName.empty()) {

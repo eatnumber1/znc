@@ -831,6 +831,7 @@ void CClient::UserCommand(CString& sLine) {
 			(*it)->ClearBuffer();
 		}
 		PutStatus("All channel buffers have been cleared");
+#ifdef HAVE_SHOES
 	} else if (sCommand.Equals("SHOWPROXY")) {
 		if (m_pUser->GetProxy() == NULL) {
 			PutStatus("None");
@@ -851,6 +852,7 @@ void CClient::UserCommand(CString& sLine) {
 		m_pUser->SetProxy(sLine.Token(1, true));
 		
 		PutStatus("Proxy server set");
+#endif /* HAVE_SHOES */
 	} else if (sCommand.Equals("SETBUFFER")) {
 		CString sChan = sLine.Token(1);
 
@@ -1253,6 +1255,7 @@ void CClient::HelpUser() {
 		Table.SetCell("Description", "Restart ZNC");
 	}
 
+#ifdef HAVE_SHOES
 	Table.AddRow();
 	Table.SetCell("Command", "SetProxy");
 	Table.SetCell("Arguments", "<server> [port]");
@@ -1265,6 +1268,7 @@ void CClient::HelpUser() {
 	Table.AddRow();
 	Table.SetCell("Command", "ShowProxy");
 	Table.SetCell("Description", "Show the current proxy server");
+#endif /* HAVE_SHOES */
 
 	PutStatus(Table);
 }

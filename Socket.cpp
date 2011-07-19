@@ -86,7 +86,11 @@ bool CSocket::ConnectionFrom(const CString& sHost, unsigned short uPort) {
 	return CZNC::Get().AllowConnectionFrom(sHost);
 }
 
-bool CSocket::Connect(const CString& sHostname, unsigned short uPort, bool bSSL, unsigned int uTimeout, const CString& sSocksAddr, unsigned short uSocksPort) {
+bool CSocket::Connect(const CString& sHostname, unsigned short uPort, bool bSSL, unsigned int uTimeout
+#ifdef HAVE_SHOES
+		, const CString& sSocksAddr, unsigned short uSocksPort
+#endif /* HAVE_SHOES */
+) {
 	if (!m_pModule) {
 		DEBUG("ERROR: CSocket::Connect called on instance without m_pModule handle!");
 		return false;
@@ -106,7 +110,11 @@ bool CSocket::Connect(const CString& sHostname, unsigned short uPort, bool bSSL,
 		sSockName = GetSockName();
 	}
 
-	return m_pModule->GetManager()->Connect(sHostname, uPort, sSockName, uTimeout, bSSL, sBindHost, this, sSocksAddr, uSocksPort);
+	return m_pModule->GetManager()->Connect(sHostname, uPort, sSockName, uTimeout, bSSL, sBindHost, this
+#ifdef HAVE_SHOES
+		, sSocksAddr, uSocksPort
+#endif /* HAVE_SHOES */
+	);
 }
 
 bool CSocket::Listen(unsigned short uPort, bool bSSL, unsigned int uTimeout) {

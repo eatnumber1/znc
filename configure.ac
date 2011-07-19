@@ -83,20 +83,6 @@ case "${host_os}" in
 	;;
 esac
 
-
-PKG_CHECK_MODULES([shoes], [shoes >= 0.0.0],, SHOES=no)
-
-if test "x$SHOES" = "xno" ; then
-	ZNC_AUTO_FAIL([SHOES],
-		[shoes not found. Try --disable-shoes.],
-		[shoes was not found and thus disabled])
-else
-	AC_DEFINE([HAVE_SHOES], [1], [Define if shoes is enabled])
-	appendCXX $shoes_CFLAGS
-	appendLib $shoes_LIBS
-	SHOES=yes
-fi
-
 AC_ARG_WITH( [openssl],
 	AS_HELP_STRING([--with-openssl=DIR], [openssl installation prefix]),
 	[OPENSSL=$withval],)
@@ -157,6 +143,10 @@ AC_ARG_ENABLE( [poll],
 	AS_HELP_STRING([--disable-poll], [use select() instead of poll()]),
 	[POLL="$enableval"],
 	[POLL="yes"])
+AC_ARG_ENABLE( [shoes],
+	AS_HELP_STRING([--enable-shoes], [enable libshoes]),
+	[SHOES="$enableval"],
+	[SHOES="no"])
 
 if test "$DEBUG" != "no"; then
 	appendCXX -ggdb
@@ -208,6 +198,32 @@ PKG_PROG_PKG_CONFIG()
 
 AC_SEARCH_LIBS([dlopen], [dl], [],
 		[AC_MSG_ERROR([Could not find dlopen. ZNC will not work on this box until you upgrade this ancient system or at least install the necessary system libraries.])])
+
+# ----- Check for libshoes
+
+if test "x$SHOES" != "xno"; then
+	old_SHOES=$SHOES
+	if test -z "$PKG_CONFIG"
+	then
+		SHOES=no
+		ZNC_AUTO_FAIL([SHOES],
+			[pkg-config not found. Try --disable-shoes. Disabling shoes will disable support for SOCKS proxies],
+			[pkg-config was not found and thus shoes was disabled])
+	else
+		PKG_CHECK_MODULES([shoes], [shoes >= 0.1],, SHOES=no)
+
+		if test "x$SHOES" = "xno" ; then
+			ZNC_AUTO_FAIL([SHOES],
+				[shoes not found. Try --disable-shoes. Disabling shoes will disable support for SOCKS proxies],
+				[shoes was not found and thus disabled])
+		else
+			AC_DEFINE([HAVE_SHOES], [1], [Define if shoes is enabled])
+			appendCXX $shoes_CFLAGS
+			appendLib $shoes_LIBS
+			SHOES=yes
+		fi
+	fi
+fi
 
 # ----- Check for c-ares
 
@@ -547,6 +563,7 @@ echo "debug:        $DEBUG"
 echo "ipv6:         $IPV6"
 echo "openssl:      $SSL"
 echo "c-ares:       $ARES"
+echo "shoes:        $SHOES"
 echo "perl:         $PERL"
 echo "python:       $PYTHON"
 echo "swig:         $USESWIG"

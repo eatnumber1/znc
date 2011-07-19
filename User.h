@@ -69,9 +69,11 @@ public:
 	static bool IsValidUserName(const CString& sUserName);
 	static CString MakeCleanUserName(const CString& sUserName);
 	bool IsLastServer() const;
+#ifdef HAVE_SHOES
 	bool SetProxy(const CString& sName);
 	bool SetProxy(const CString& sName, unsigned short uPort);
 	const CServer* GetProxy() const;
+#endif /* HAVE_SHOES */
 
 	void DelClients();
 	void DelServers();
@@ -163,7 +165,9 @@ public:
 	void SetSkinName(const CString& s) { m_sSkinName = s; }
 	void SetIRCConnectEnabled(bool b) { m_bIRCConnectEnabled = b; }
 	void SetIRCAway(bool b) { m_bIRCAway = b; }
+#ifdef HAVE_SHOES
 	void SetProxy(CServer* pProxy);
+#endif /* HAVE_SHOES */
 	// !Setters
 
 	// Getters
@@ -276,7 +280,9 @@ protected:
 	CString               m_sSkinName;
 
 	CModules*             m_pModules;
+#ifdef HAVE_SHOES
 	CServer*              m_pProxy;
+#endif /* HAVE_SHOES */
 };
 
 #endif // !_USER_H

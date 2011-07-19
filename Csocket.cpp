@@ -43,9 +43,11 @@
 
 #include <list>
 
+#ifdef HAVE_SHOES
 extern "C" {
 #include <shoes.h>
 }
+#endif /* HAVE_SHOES */
 
 #define CS_SRANDBUFFER 128
 
@@ -658,6 +660,7 @@ void Csock::CloseSocksFD()
 	} else if( m_iReadSock != CS_INVALID_SOCK )
 		CS_CLOSE( m_iReadSock );
 
+#ifdef HAVE_SHOES
 	shoes_rc_e rc;
 	if( m_shoesConn != NULL ) {
 		if( (rc = shoes_conn_free(m_shoesConn)) != SHOES_ERR_NOERR ) {
@@ -671,6 +674,7 @@ void Csock::CloseSocksFD()
 		}
 		m_shoesConnstate = NULL;
 	}
+#endif /* HAVE_SHOES */
 
 	m_iReadSock = CS_INVALID_SOCK;
 	m_iWriteSock = CS_INVALID_SOCK;
@@ -709,7 +713,6 @@ void Csock::Copy( const Csock & cCopy )
 	m_bEnableReadLine	= cCopy.m_bEnableReadLine;
 	m_bPauseRead		= cCopy.m_bPauseRead;
 	m_shostname		= cCopy.m_shostname;
-	m_sSocksAddr	= cCopy.m_sSocksAddr;
 	m_sbuffer		= cCopy.m_sbuffer;
 	m_sSockName		= cCopy.m_sSockName;
 	m_sPemFile		= cCopy.m_sPemFile;
@@ -720,8 +723,12 @@ void Csock::Copy( const Csock & cCopy )
 	m_sLocalIP		= cCopy.m_sLocalIP;
 	m_sRemoteIP		= cCopy.m_sRemoteIP;
 	m_eCloseType	= cCopy.m_eCloseType;
+#ifdef HAVE_SHOES
 	m_shoesConn	    = cCopy.m_shoesConn;
 	m_shoesConnstate    = cCopy.m_shoesConnstate;
+	m_sSocksAddr	= cCopy.m_sSocksAddr;
+	m_uSocksPort	= cCopy.m_uSocksPort;
+#endif /* HAVE_SHOES */
 
 	m_iMaxMilliSeconds	= cCopy.m_iMaxMilliSeconds;
 	m_iLastSendTime		= cCopy.m_iLastSendTime;
@@ -908,6 +915,7 @@ bool Csock::Connect( const CS_STRING & sBindHost, bool bSkipSetup )
 		return( false );
 	}
 
+#ifdef HAVE_SHOES
 	if ( m_sSocksAddr != "" )
 	{
 		shoes_rc_e rc;
@@ -938,6 +946,7 @@ bool Csock::Connect( const CS_STRING & sBindHost, bool bSkipSetup )
 		}
 		if( !SocksHandshake() ) return( false );
 	}
+#endif /* HAVE_SHOES */
 
 	if ( m_bBLOCK )
 	{
@@ -952,6 +961,7 @@ bool Csock::Connect( const CS_STRING & sBindHost, bool bSkipSetup )
 	return( true );
 }
 
+#ifdef HAVE_SHOES
 bool Csock::SocksHandshake()
 {
 	if( m_iReadSock != m_iWriteSock ) {
@@ -986,6 +996,12 @@ bool Csock::IsSocksProxied()
 {
 	return m_sSocksAddr != "";
 }
+
+const CS_STRING & Csock::GetSocksAddr() const { return( m_sSocksAddr ); }
+void Csock::SetSocksAddr( const CS_STRING & sSocksAddr ) { m_sSocksAddr = sSocksAddr; }
+u_short Csock::GetSocksPort() { return( m_uSocksPort ); }
+void Csock::SetSocksPort( u_short iPort ) { m_uSocksPort = iPort; }
+#endif /* HAVE_SHOES */
 
 int Csock::WriteSelect()
 {
@@ -1427,8 +1443,14 @@ bool Csock::ConnectSSL( const CS_STRING & sBindhost )
 {
 #ifdef HAVE_LIBSSL
 	if ( m_iReadSock == CS_INVALID_SOCK )
+	{
 		if ( !Connect( sBindhost ) )
 			return( false );
+	}
+#ifdef HAVE_SHOES
+	if ( IsSocksProxied() && !IsSocksHandshakeComplete() && !SocksHandshake() )
+		return( false );
+#endif /* HAVE_SHOES */
 	if ( !m_ssl )
 		if ( !SSLClientSetup() )
 			return( false );
@@ -1912,8 +1934,6 @@ const CS_STRING & Csock::GetSockName() const { return( m_sSockName ); }
 void Csock::SetSockName( const CS_STRING & sName ) { m_sSockName = sName; }
 const CS_STRING & Csock::GetHostName() const { return( m_shostname ); }
 void Csock::SetHostName( const CS_STRING & sHostname ) { m_shostname = sHostname; }
-const CS_STRING & Csock::GetSocksAddr() const { return( m_sSocksAddr ); }
-void Csock::SetSocksAddr( const CS_STRING & sSocksAddr ) { m_sSocksAddr = sSocksAddr; }
 unsigned long long Csock::GetStartTime() const { return( m_iStartTime ); }
 void Csock::ResetStartTime() { m_iStartTime = 0; }
 unsigned long long Csock::GetBytesRead() const { return( m_iBytesRead ); }
@@ -2000,9 +2020,6 @@ u_short Csock::GetLocalPort()
 
 	return( m_iLocalPort );
 }
-
-u_short Csock::GetSocksPort() { return( m_uPort ); }
-void Csock::SetSocksPort( u_short iPort ) { m_uSocksPort = iPort; }
 
 u_short Csock::GetPort() { return( m_uPort ); }
 void Csock::SetPort( u_short iPort ) { m_uPort = iPort; }
@@ -2430,10 +2447,12 @@ int Csock::DNSLookup( EDNSLType eDNSLType )
 		}
 #endif /* HAVE_IPV6 */
 	}
+#ifdef HAVE_SHOES
 	else if ( m_sSocksAddr != "" )
 	{
 		iRet = GetAddrInfo( m_sSocksAddr, m_address );
 	}
+#endif /* HAVE_SHOES */
 	else
 	{
 		iRet = GetAddrInfo( m_shostname, m_address );
@@ -2561,7 +2580,6 @@ void Csock::Init( const CS_STRING & sHostname, u_short uPort, int itimeout )
 	m_bIsConnected = false;
 	m_uPort = uPort;
 	m_shostname = sHostname;
-	m_sSocksAddr = "";
 	m_sbuffer.clear();
 	m_eCloseType = CLT_DONT;
 	m_bBLOCK = true;
@@ -2588,8 +2606,12 @@ void Csock::Init( const CS_STRING & sHostname, u_short uPort, int itimeout )
 	m_bIsIPv6 = false;
 	m_bSkipConnect = false;
 	m_iLastCheckTimeoutTime = 0;
+#ifdef HAVE_SHOES
 	m_shoesConn = NULL;
 	m_shoesConnstate = NULL;
+	m_sSocksAddr = "";
+	m_uSocksPort = 1080;
+#endif /* HAVE_SHOES */
 #ifdef HAVE_C_ARES
 	m_pARESChannel = NULL;
 	m_pCurrAddr = NULL;

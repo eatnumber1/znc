@@ -142,6 +142,7 @@ bool CZNC::ConnectUser(CUser *pUser) {
 		return false;
 	);
 
+#ifdef HAVE_SHOES
 	const CServer *pSocksServer = pUser->GetProxy();
 	CString sSocksAddr = "";
 	unsigned int uSocksPort = 0;
@@ -149,8 +150,13 @@ bool CZNC::ConnectUser(CUser *pUser) {
 		sSocksAddr = pSocksServer->GetName();
 		uSocksPort = pSocksServer->GetPort();
 	}
+#endif /* HAVE_SHOES */
 
-	if (!m_Manager.Connect(pServer->GetName(), pServer->GetPort(), sSockName, 120, bSSL, pUser->GetBindHost(), pIRCSock, sSocksAddr, uSocksPort)) {
+	if (!m_Manager.Connect(pServer->GetName(), pServer->GetPort(), sSockName, 120, bSSL, pUser->GetBindHost(), pIRCSock
+#ifdef HAVE_SHOES
+				, sSocksAddr, uSocksPort
+#endif /* HAVE_SHOES */
+	)) {
 		pUser->PutStatus("Unable to connect. (Bad host?)");
 	}
 
