@@ -19,10 +19,10 @@
 # warning "your crap box doesnt define RTLD_LOCAL !?"
 #endif
 
-#define _MODUNLOADCHK(func, type)                                        \
+#define MODUNLOADCHK(func)                                        \
 	for (unsigned int a = 0; a < size(); a++) {                      \
 		try {                                                    \
-			type* pMod = (type *) (*this)[a];                \
+			CModule* pMod = (CModule *) (*this)[a];                \
 			CClient* pOldClient = pMod->GetClient();         \
 			pMod->SetClient(m_pClient);                      \
 			if (m_pUser) {                                   \
@@ -41,14 +41,12 @@
 		}                                                        \
 	}
 
-#define MODUNLOADCHK(func)	_MODUNLOADCHK(func, CModule)
-#define GLOBALMODCALL(func)	_MODUNLOADCHK(func, CGlobalModule)
 
-#define _MODHALTCHK(func, type)                                          \
+#define MODHALTCHK(func)                                          \
 	bool bHaltCore = false;                                          \
 	for (unsigned int a = 0; a < size(); a++) {                      \
 		try {                                                    \
-			type* pMod = (type*) (*this)[a];                 \
+			CModule* pMod = (CModule*) (*this)[a];                 \
 			CModule::EModRet e = CModule::CONTINUE;          \
 			CClient* pOldClient = pMod->GetClient();         \
 			pMod->SetClient(m_pClient);                      \
@@ -77,9 +75,6 @@
 	}                                                                \
 	return bHaltCore;
 
-#define MODHALTCHK(func)	_MODHALTCHK(func, CModule)
-#define GLOBALMODHALTCHK(func)	_MODHALTCHK(func, CGlobalModule)
-
 /////////////////// Timer ///////////////////
 CTimer::CTimer(CModule* pModule, unsigned int uInterval, unsigned int uCycles, const CString& sLabel, const CString& sDescription) : CCron() {
 	SetName(sLabel);
@@ -105,7 +100,6 @@ const CString& CTimer::GetDescription() const { return m_sDescription; }
 
 
 CModule::CModule(ModHandle pDLL, CUser* pUser, const CString& sModName, const CString& sDataDir) {
-	m_bGlobal = false;
 	m_pDLL = pDLL;
 	m_pManager = &(CZNC::Get().GetManager());;
 	m_pUser = pUser;
@@ -115,19 +109,9 @@ CModule::CModule(ModHandle pDLL, CUser* pUser, const CString& sModName, const CS
 
 	if (m_pUser) {
 		m_sSavePath = m_pUser->GetUserPath() + "/moddata/" + m_sModName;
-		LoadRegistry();
+	} else {
+		m_sSavePath = CZNC::Get().GetZNCPath() + "/moddata/" + m_sModName;
 	}
-}
-
-CModule::CModule(ModHandle pDLL, const CString& sModName, const CString& sDataDir) {
-	m_pDLL = pDLL;
-	m_pManager = &(CZNC::Get().GetManager());
-	m_pUser = NULL;
-	m_pClient = NULL;
-	m_sModName = sModName;
-	m_sDataDir = sDataDir;
-
-	m_sSavePath = CZNC::Get().GetZNCPath() + "/moddata/" + m_sModName;
 	LoadRegistry();
 }
 
@@ -570,25 +554,25 @@ bool CModule::PutModNotice(const CString& sLine) {
 }
 
 ///////////////////
-// CGlobalModule //
+// Global Module //
 ///////////////////
-CModule::EModRet CGlobalModule::OnAddUser(CUser& User, CString& sErrorRet) { return CONTINUE; }
-CModule::EModRet CGlobalModule::OnDeleteUser(CUser& User) { return CONTINUE; }
-void CGlobalModule::OnClientConnect(CZNCSock* pClient, const CString& sHost, unsigned short uPort) {}
-CModule::EModRet CGlobalModule::OnLoginAttempt(CSmartPtr<CAuthBase> Auth) { return CONTINUE; }
-void CGlobalModule::OnFailedLogin(const CString& sUsername, const CString& sRemoteIP) {}
-CModule::EModRet CGlobalModule::OnUnknownUserRaw(CString& sLine) { return CONTINUE; }
-void CGlobalModule::OnClientCapLs(SCString& ssCaps) {}
-bool CGlobalModule::IsClientCapSupported(const CString& sCap, bool bState) { return false; }
-void CGlobalModule::OnClientCapRequest(const CString& sCap, bool bState) {}
-CModule::EModRet CGlobalModule::OnModuleLoading(const CString& sModName, const CString& sArgs,
-		bool& bSuccess, CString& sRetMsg) { return CONTINUE; }
-CModule::EModRet CGlobalModule::OnModuleUnloading(CModule* pModule, bool& bSuccess, CString& sRetMsg) {
+CModule::EModRet CModule::OnAddUser(CUser& User, CString& sErrorRet) { return CONTINUE; }
+CModule::EModRet CModule::OnDeleteUser(CUser& User) { return CONTINUE; }
+void CModule::OnClientConnect(CZNCSock* pClient, const CString& sHost, unsigned short uPort) {}
+CModule::EModRet CModule::OnLoginAttempt(CSmartPtr<CAuthBase> Auth) { return CONTINUE; }
+void CModule::OnFailedLogin(const CString& sUsername, const CString& sRemoteIP) {}
+CModule::EModRet CModule::OnUnknownUserRaw(CString& sLine) { return CONTINUE; }
+void CModule::OnClientCapLs(SCString& ssCaps) {}
+bool CModule::IsClientCapSupported(const CString& sCap, bool bState) { return false; }
+void CModule::OnClientCapRequest(const CString& sCap, bool bState) {}
+CModule::EModRet CModule::OnModuleLoading(const CString& sModName, const CString& sArgs,
+		CModInfo::EModuleType eType, bool& bSuccess, CString& sRetMsg) { return CONTINUE; }
+CModule::EModRet CModule::OnModuleUnloading(CModule* pModule, bool& bSuccess, CString& sRetMsg) {
 	return CONTINUE;
 }
-CModule::EModRet CGlobalModule::OnGetModInfo(CModInfo& ModInfo, const CString& sModule,
+CModule::EModRet CModule::OnGetModInfo(CModInfo& ModInfo, const CString& sModule,
 		bool& bSuccess, CString& sRetMsg) { return CONTINUE; }
-void CGlobalModule::OnGetAvailableMods(set<CModInfo>& ssMods, bool bGlobal) {}
+void CModule::OnGetAvailableMods(set<CModInfo>& ssMods, CModInfo::EModuleType eType) {}
 
 
 CModules::CModules() {
@@ -603,7 +587,7 @@ CModules::~CModules() {
 void CModules::UnloadAll() {
 	while (size()) {
 		CString sRetMsg;
-		CString sModName = (*this)[0]->GetModName();
+		CString sModName = back()->GetModName();
 		UnloadModule(sModName, sRetMsg);
 	}
 }
@@ -709,45 +693,45 @@ bool CModules::OnServerCapAvailable(const CString& sCap) {
 bool CModules::OnServerCapResult(const CString& sCap, bool bSuccess) { MODUNLOADCHK(OnServerCapResult(sCap, bSuccess)); return false; }
 
 ////////////////////
-// CGlobalModules //
+// Global Modules //
 ////////////////////
-bool CGlobalModules::OnAddUser(CUser& User, CString& sErrorRet) {
-	GLOBALMODHALTCHK(OnAddUser(User, sErrorRet));
+bool CModules::OnAddUser(CUser& User, CString& sErrorRet) {
+	MODHALTCHK(OnAddUser(User, sErrorRet));
 }
 
-bool CGlobalModules::OnDeleteUser(CUser& User) {
-	GLOBALMODHALTCHK(OnDeleteUser(User));
+bool CModules::OnDeleteUser(CUser& User) {
+	MODHALTCHK(OnDeleteUser(User));
 }
 
-bool CGlobalModules::OnClientConnect(CZNCSock* pClient, const CString& sHost, unsigned short uPort) {
-	GLOBALMODCALL(OnClientConnect(pClient, sHost, uPort));
+bool CModules::OnClientConnect(CZNCSock* pClient, const CString& sHost, unsigned short uPort) {
+	MODUNLOADCHK(OnClientConnect(pClient, sHost, uPort));
 	return false;
 }
 
-bool CGlobalModules::OnLoginAttempt(CSmartPtr<CAuthBase> Auth) {
-	GLOBALMODHALTCHK(OnLoginAttempt(Auth));
+bool CModules::OnLoginAttempt(CSmartPtr<CAuthBase> Auth) {
+	MODHALTCHK(OnLoginAttempt(Auth));
 }
 
-bool CGlobalModules::OnFailedLogin(const CString& sUsername, const CString& sRemoteIP) {
-	GLOBALMODCALL(OnFailedLogin(sUsername, sRemoteIP));
+bool CModules::OnFailedLogin(const CString& sUsername, const CString& sRemoteIP) {
+	MODUNLOADCHK(OnFailedLogin(sUsername, sRemoteIP));
 	return false;
 }
 
-bool CGlobalModules::OnUnknownUserRaw(CString& sLine) {
-	GLOBALMODHALTCHK(OnUnknownUserRaw(sLine));
+bool CModules::OnUnknownUserRaw(CString& sLine) {
+	MODHALTCHK(OnUnknownUserRaw(sLine));
 }
 
-bool CGlobalModules::OnClientCapLs(SCString& ssCaps) {
-	GLOBALMODCALL(OnClientCapLs(ssCaps));
+bool CModules::OnClientCapLs(SCString& ssCaps) {
+	MODUNLOADCHK(OnClientCapLs(ssCaps));
 	return false;
 }
 
 // Maybe create new macro for this?
-bool CGlobalModules::IsClientCapSupported(const CString& sCap, bool bState) {
+bool CModules::IsClientCapSupported(const CString& sCap, bool bState) {
 	bool bResult = false;
 	for (unsigned int a = 0; a < size(); ++a) {
 		try {
-			CGlobalModule* pMod = (CGlobalModule*) (*this)[a];
+			CModule* pMod = (CModule*) (*this)[a];
 			CClient* pOldClient = pMod->GetClient();
 			pMod->SetClient(m_pClient);
 			if (m_pUser) {
@@ -769,27 +753,27 @@ bool CGlobalModules::IsClientCapSupported(const CString& sCap, bool bState) {
 	return bResult;
 }
 
-bool CGlobalModules::OnClientCapRequest(const CString& sCap, bool bState) {
-	GLOBALMODCALL(OnClientCapRequest(sCap, bState));
+bool CModules::OnClientCapRequest(const CString& sCap, bool bState) {
+	MODUNLOADCHK(OnClientCapRequest(sCap, bState));
 	return false;
 }
 
-bool CGlobalModules::OnModuleLoading(const CString& sModName, const CString& sArgs,
+bool CModules::OnModuleLoading(const CString& sModName, const CString& sArgs,
+		CModInfo::EModuleType eType, bool& bSuccess, CString& sRetMsg) {
+	MODHALTCHK(OnModuleLoading(sModName, sArgs, eType, bSuccess, sRetMsg));
+}
+
+bool CModules::OnModuleUnloading(CModule* pModule, bool& bSuccess, CString& sRetMsg) {
+	MODHALTCHK(OnModuleUnloading(pModule, bSuccess, sRetMsg));
+}
+
+bool CModules::OnGetModInfo(CModInfo& ModInfo, const CString& sModule,
 		bool& bSuccess, CString& sRetMsg) {
-	GLOBALMODHALTCHK(OnModuleLoading(sModName, sArgs, bSuccess, sRetMsg));
+	MODHALTCHK(OnGetModInfo(ModInfo, sModule, bSuccess, sRetMsg));
 }
 
-bool CGlobalModules::OnModuleUnloading(CModule* pModule, bool& bSuccess, CString& sRetMsg) {
-	GLOBALMODHALTCHK(OnModuleUnloading(pModule, bSuccess, sRetMsg));
-}
-
-bool CGlobalModules::OnGetModInfo(CModInfo& ModInfo, const CString& sModule,
-		bool& bSuccess, CString& sRetMsg) {
-	GLOBALMODHALTCHK(OnGetModInfo(ModInfo, sModule, bSuccess, sRetMsg));
-}
-
-bool CGlobalModules::OnGetAvailableMods(set<CModInfo>& ssMods, bool bGlobal) {
-	GLOBALMODCALL(OnGetAvailableMods(ssMods, bGlobal));
+bool CModules::OnGetAvailableMods(set<CModInfo>& ssMods, CModInfo::EModuleType eType) {
+	MODUNLOADCHK(OnGetAvailableMods(ssMods, eType));
 	return false;
 }
 
@@ -804,7 +788,7 @@ CModule* CModules::FindModule(const CString& sModule) const {
 	return NULL;
 }
 
-bool CModules::LoadModule(const CString& sModule, const CString& sArgs, CUser* pUser, CString& sRetMsg) {
+bool CModules::LoadModule(const CString& sModule, const CString& sArgs, CModInfo::EModuleType eType, CUser* pUser, CString& sRetMsg) {
 	sRetMsg = "";
 
 	if (FindModule(sModule) != NULL) {
@@ -813,7 +797,7 @@ bool CModules::LoadModule(const CString& sModule, const CString& sArgs, CUser* p
 	}
 
 	bool bSuccess;
-	GLOBALMODULECALL(OnModuleLoading(sModule, sArgs, bSuccess, sRetMsg), pUser, NULL, return bSuccess);
+	GLOBALMODULECALL(OnModuleLoading(sModule, sArgs, eType, bSuccess, sRetMsg), pUser, NULL, return bSuccess);
 
 	CString sModPath, sDataPath;
 	bool bVersionMismatch;
@@ -835,24 +819,36 @@ bool CModules::LoadModule(const CString& sModule, const CString& sArgs, CUser* p
 		return false;
 	}
 
-	if ((pUser == NULL) != Info.IsGlobal()) {
+	if (!Info.SupportsType(eType)) {
 		dlclose(p);
-		sRetMsg = "Module [" + sModule + "] is ";
-		sRetMsg += Info.IsGlobal() ? "" : "not ";
-		sRetMsg += "a global module.";
+		sRetMsg = "Module [" + sModule + "] does not support module type ["
+			+ CModInfo::ModuleTypeToString(eType) + "].";
+		return false;
+	}
+
+	if (!pUser && eType == CModInfo::UserModule) {
+		dlclose(p);
+		sRetMsg = "Module [" + sModule + "] requires a user.";
 		return false;
 	}
 
 	CModule* pModule = NULL;
 
-	if (pUser) {
+	switch (eType) {
+	case CModInfo::UserModule:
 		pModule = Info.GetLoader()(p, pUser, sModule, sDataPath);
-	} else {
-		pModule = Info.GetGlobalLoader()(p, sModule, sDataPath);
+		break;
+	case CModInfo::GlobalModule:
+		pModule = Info.GetLoader()(p, NULL, sModule, sDataPath);
+		break;
+	default:
+		dlclose(p);
+		sRetMsg = "Unsupported module type";
+		return false;
 	}
 
 	pModule->SetDescription(Info.GetDescription());
-	pModule->SetGlobal(Info.IsGlobal());
+	pModule->SetType(eType);
 	pModule->SetArgs(sArgs);
 	pModule->SetModPath(CDir::ChangeDir(CZNC::Get().GetCurPath(), sModPath));
 	push_back(pModule);
@@ -923,12 +919,22 @@ bool CModules::UnloadModule(const CString& sModule, CString& sRetMsg) {
 
 bool CModules::ReloadModule(const CString& sModule, const CString& sArgs, CUser* pUser, CString& sRetMsg) {
 	CString sMod = sModule;  // Make a copy incase the reference passed in is from CModule::GetModName()
+	CModule *pModule = FindModule(sMod);
+
+	if (!pModule) {
+		sRetMsg = "Module [" + sMod + "] not loaded";
+		return false;
+	}
+
+	CModInfo::EModuleType eType = pModule->GetType();
+	pModule = NULL;
+
 	sRetMsg = "";
 	if (!UnloadModule(sMod, sRetMsg)) {
 		return false;
 	}
 
-	if (!LoadModule(sMod, sArgs, pUser, sRetMsg)) {
+	if (!LoadModule(sMod, sArgs, eType, pUser, sRetMsg)) {
 		return false;
 	}
 
@@ -970,7 +976,7 @@ bool CModules::GetModPathInfo(CModInfo& ModInfo, const CString& sModule, const C
 	return true;
 }
 
-void CModules::GetAvailableMods(set<CModInfo>& ssMods, bool bGlobal) {
+void CModules::GetAvailableMods(set<CModInfo>& ssMods, CModInfo::EModuleType eType) {
 	ssMods.clear();
 
 	unsigned int a = 0;
@@ -991,14 +997,14 @@ void CModules::GetAvailableMods(set<CModInfo>& ssMods, bool bGlobal) {
 
 			CString sIgnoreRetMsg;
 			if (GetModPathInfo(ModInfo, sName, sPath, sIgnoreRetMsg)) {
-				if (ModInfo.IsGlobal() == bGlobal) {
+				if (ModInfo.SupportsType(eType)) {
 					ssMods.insert(ModInfo);
 				}
 			}
 		}
 	}
 
-	GLOBALMODULECALL(OnGetAvailableMods(ssMods, bGlobal), NULL, NULL, NOTHING);
+	GLOBALMODULECALL(OnGetAvailableMods(ssMods, eType), NULL, NULL, NOTHING);
 }
 
 bool CModules::FindModPath(const CString& sModule, CString& sModPath,
@@ -1035,7 +1041,7 @@ CModules::ModDirList CModules::GetModDirs() {
 
 	// ./modules/extra
 	sDir = CZNC::Get().GetCurPath() + "/modules/extra/";
-	ret.push(std::make_pair(sDir, sDir));
+	ret.push(std::make_pair(sDir, sDir + "data/"));
 #endif
 
 	// ~/.znc/modules

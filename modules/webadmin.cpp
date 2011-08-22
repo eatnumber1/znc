@@ -51,9 +51,9 @@ inline bool FOR_EACH_MODULE_CanContinue(FOR_EACH_MODULE_Type& state, CModules::i
 	if (FOR_EACH_MODULE_Type FOR_EACH_MODULE_Var = pUser) {} else\
 	for (CModules::iterator I = CZNC::Get().GetModules().begin(); FOR_EACH_MODULE_CanContinue(FOR_EACH_MODULE_Var, I); ++I)
 
-class CWebAdminMod : public CGlobalModule {
+class CWebAdminMod : public CModule {
 public:
-	GLOBALMODCONSTRUCTOR(CWebAdminMod) {
+	MODCONSTRUCTOR(CWebAdminMod) {
 		VPair vParams;
 		vParams.push_back(make_pair("user", ""));
 		AddSubPage(new CWebSubPage("settings", "Global Settings", CWebSubPage::F_ADMIN));
@@ -141,24 +141,6 @@ public:
 
 		SetArgs("");
 		return true;
-	}
-
-	CString GetModArgs(CUser* pUser, const CString& sModName, bool bGlobal = false) {
-		if (!bGlobal && !pUser) {
-			return "";
-		}
-
-		CModules& Modules = (bGlobal) ? CZNC::Get().GetModules() : pUser->GetModules();
-
-		for (unsigned int a = 0; a < Modules.size(); a++) {
-			CModule* pModule = Modules[a];
-
-			if (pModule->GetModName() == sModName) {
-				return pModule->GetArgs();
-			}
-		}
-
-		return "";
 	}
 
 	CUser* GetNewUser(CWebSock& WebSock, CUser* pUser) {
@@ -290,7 +272,7 @@ public:
 					CString sArgs = WebSock.GetParam("modargs_" + sModName);
 
 					try {
-						if (!pNewUser->GetModules().LoadModule(sModName, sArgs, pNewUser, sModRet)) {
+						if (!pNewUser->GetModules().LoadModule(sModName, sArgs, CModInfo::UserModule, pNewUser, sModRet)) {
 							sModLoadError = "Unable to load module [" + sModName + "] [" + sModRet + "]";
 						}
 					} catch (...) {
@@ -313,7 +295,7 @@ public:
 				CString sModLoadError;
 
 				try {
-					if (!pNewUser->GetModules().LoadModule(sModName, sArgs, pNewUser, sModRet)) {
+					if (!pNewUser->GetModules().LoadModule(sModName, sArgs, CModInfo::UserModule, pNewUser, sModRet)) {
 						sModLoadError = "Unable to load module [" + sModName + "] [" + sModRet + "]";
 					}
 				} catch (...) {
@@ -744,11 +726,14 @@ public:
 
 				l["Name"] = Info.GetName();
 				l["Description"] = Info.GetDescription();
-				l["Args"] = GetModArgs(pUser, Info.GetName());
 				l["Wiki"] = Info.GetWikiPage();
 
-				if (pUser && pUser->GetModules().FindModule(Info.GetName())) {
+				CModule *pModule = NULL;
+				if (pUser)
+					pModule = pUser->GetModules().FindModule(Info.GetName());
+				if (pModule) {
 					l["Checked"] = "true";
+					l["Args"] = pModule->GetArgs();
 				}
 
 				if (!spSession->IsAdmin() && pUser && pUser->DenyLoadMod()) {
@@ -1023,14 +1008,16 @@ public:
 			}
 
 			set<CModInfo> ssGlobalMods;
-			CZNC::Get().GetModules().GetAvailableMods(ssGlobalMods, true);
+			CZNC::Get().GetModules().GetAvailableMods(ssGlobalMods, CModInfo::GlobalModule);
 
 			for (set<CModInfo>::iterator it = ssGlobalMods.begin(); it != ssGlobalMods.end(); ++it) {
 				const CModInfo& Info = *it;
 				CTemplate& l = Tmpl.AddRow("ModuleLoop");
 
-				if (CZNC::Get().GetModules().FindModule(Info.GetName())) {
+				CModule *pModule = CZNC::Get().GetModules().FindModule(Info.GetName());
+				if (pModule) {
 					l["Checked"] = "true";
+					l["Args"] = pModule->GetArgs();
 				}
 
 				if (Info.GetName() == GetModName()) {
@@ -1039,7 +1026,6 @@ public:
 
 				l["Name"] = Info.GetName();
 				l["Description"] = Info.GetDescription();
-				l["Args"] = GetModArgs(NULL, Info.GetName(), true);
 				l["Wiki"] = Info.GetWikiPage();
 			}
 
@@ -1085,7 +1071,7 @@ public:
 
 				CModule *pMod = CZNC::Get().GetModules().FindModule(sModName);
 				if (!pMod) {
-					if (!CZNC::Get().GetModules().LoadModule(sModName, sArgs, NULL, sModRet)) {
+					if (!CZNC::Get().GetModules().LoadModule(sModName, sArgs, CModInfo::GlobalModule, NULL, sModRet)) {
 						sModLoadError = "Unable to load module [" + sModName + "] [" + sModRet + "]";
 					}
 				} else if (pMod->GetArgs() != sArgs) {

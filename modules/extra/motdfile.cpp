@@ -10,9 +10,9 @@
 #include "Client.h"
 #include "FileUtils.h"
 
-class CMotdFileMod : public CGlobalModule {
+class CMotdFileMod : public CModule {
 public:
-	GLOBALMODCONSTRUCTOR(CMotdFileMod) {}
+	MODCONSTRUCTOR(CMotdFileMod) {}
 	virtual ~CMotdFileMod() {}
 
 	virtual bool OnLoad(const CString& sArgs, CString& sMessage) {

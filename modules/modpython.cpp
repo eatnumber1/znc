@@ -20,7 +20,7 @@
 #include "modpython/module.h"
 #include "modpython/retstring.h"
 
-class CModPython: public CGlobalModule {
+class CModPython: public CModule {
 
 	PyObject* m_PyZNCModule;
 	PyObject* m_PyFormatException;
@@ -69,7 +69,7 @@ public:
 			return result;
 	}
 
-	GLOBALMODCONSTRUCTOR(CModPython) {
+	MODCONSTRUCTOR(CModPython) {
 		Py_Initialize();
 		m_PyFormatException = NULL;
 		m_PyZNCModule = NULL;
@@ -127,10 +127,7 @@ public:
 	}
 
 	virtual EModRet OnModuleLoading(const CString& sModName, const CString& sArgs,
-			bool& bSuccess, CString& sRetMsg) {
-		if (!GetUser()) {
-			return CONTINUE;
-		}
+			CModInfo::EModuleType eType, bool& bSuccess, CString& sRetMsg) {
 		PyObject* pyFunc = PyObject_GetAttrString(m_PyZNCModule, "load_module");
 		if (!pyFunc) {
 			sRetMsg = GetPyExceptionStr();
@@ -138,12 +135,13 @@ public:
 			bSuccess = false;
 			return HALT;
 		}
-		PyObject* pyRes = PyObject_CallFunction(pyFunc, const_cast<char*>("ssNNN"),
+		PyObject* pyRes = PyObject_CallFunction(pyFunc, const_cast<char*>("ssiNNN"),
 				sModName.c_str(),
 				sArgs.c_str(),
-				SWIG_NewInstanceObj(GetUser(), SWIG_TypeQuery("CUser*"), 0),
+				(int)eType,
+				(eType == CModInfo::UserModule ? SWIG_NewInstanceObj(GetUser(), SWIG_TypeQuery("CUser*"), 0) : Py_None),
 				CPyRetString::wrap(sRetMsg),
-				SWIG_NewInstanceObj(reinterpret_cast<CGlobalModule*>(this), SWIG_TypeQuery("CGlobalModule*"), 0));
+				SWIG_NewInstanceObj(reinterpret_cast<CModule*>(this), SWIG_TypeQuery("CModule*"), 0));
 		if (!pyRes) {
 			sRetMsg = GetPyExceptionStr();
 			DEBUG("modpython: " << sRetMsg);
@@ -252,7 +250,7 @@ public:
 		return HALT;
 	}
 
-	void TryAddModInfo(const CString& sPath, const CString& sName, set<CModInfo>& ssMods, set<CString>& ssAlready) {
+	void TryAddModInfo(const CString& sPath, const CString& sName, set<CModInfo>& ssMods, set<CString>& ssAlready, CModInfo::EModuleType eType) {
 		if (ssAlready.count(sName)) {
 			return;
 		}
@@ -282,17 +280,13 @@ public:
 			return;
 		}
 		Py_CLEAR(pyRes);
-		if (x) {
+		if (x && ModInfo.SupportsType(eType)) {
 			ssMods.insert(ModInfo);
 			ssAlready.insert(sName);
 		}
 	}
 
-	virtual void OnGetAvailableMods(set<CModInfo>& ssMods, bool bGlobal) {
-		if (bGlobal) {
-			return;
-		}
-
+	virtual void OnGetAvailableMods(set<CModInfo>& ssMods, CModInfo::EModuleType eType) {
 		CDir Dir;
 		CModules::ModDirList dirs = CModules::GetModDirs();
 
@@ -306,7 +300,7 @@ public:
 				CString sPath = File.GetLongName();
 				sPath.TrimSuffix(sName);
 				sName.RightChomp(3);
-				TryAddModInfo(sPath, sName, ssMods, already);
+				TryAddModInfo(sPath, sName, ssMods, already, eType);
 			}
 
 			Dir.FillByWildcard(dirs.front().first, "*.pyc");
@@ -316,7 +310,7 @@ public:
 				CString sPath = File.GetLongName();
 				sPath.TrimSuffix(sName);
 				sName.RightChomp(4);
-				TryAddModInfo(sPath, sName, ssMods, already);
+				TryAddModInfo(sPath, sName, ssMods, already, eType);
 			}
 
 			Dir.FillByWildcard(dirs.front().first, "*.so");
@@ -326,7 +320,7 @@ public:
 				CString sPath = File.GetLongName();
 				sPath.TrimSuffix(sName);
 				sName.RightChomp(3);
-				TryAddModInfo(sPath, sName, ssMods, already);
+				TryAddModInfo(sPath, sName, ssMods, already, eType);
 			}
 
 			dirs.pop();

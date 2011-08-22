@@ -41,9 +41,9 @@ protected:
 	set<CString> m_ssFixedNicks;
 };
 
-class CPartylineMod : public CGlobalModule {
+class CPartylineMod : public CModule {
 public:
-	GLOBALMODCONSTRUCTOR(CPartylineMod) {}
+	MODCONSTRUCTOR(CPartylineMod) {}
 
 	virtual ~CPartylineMod() {
 		while (m_ssChannels.size()) {

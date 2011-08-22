@@ -8,9 +8,9 @@
 
 #include "znc.h"
 
-class CFailToBanMod : public CGlobalModule {
+class CFailToBanMod : public CModule {
 public:
-	GLOBALMODCONSTRUCTOR(CFailToBanMod) {}
+	MODCONSTRUCTOR(CFailToBanMod) {}
 	virtual ~CFailToBanMod() {}
 
 	virtual bool OnLoad(const CString& sArgs, CString& sMessage) {

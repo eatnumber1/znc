@@ -11,13 +11,13 @@
 #include "User.h"
 #include "znc.h"
 
-class CIdentFileModule : public CGlobalModule {
+class CIdentFileModule : public CModule {
 	CString m_sOrigISpoof;
 	CFile* m_pISpoofLockFile;
 	CIRCSock *m_pIRCSock;
 
 public:
-	GLOBALMODCONSTRUCTOR(CIdentFileModule) {
+	MODCONSTRUCTOR(CIdentFileModule) {
 		AddHelpCommand();
 		AddCommand("GetFile",   static_cast<CModCommand::ModCmdFunc>(&CIdentFileModule::GetFile));
 		AddCommand("SetFile",   static_cast<CModCommand::ModCmdFunc>(&CIdentFileModule::SetFile),

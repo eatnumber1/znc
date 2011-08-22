@@ -150,6 +150,7 @@ class ModuleNV(collections.MutableMapping):
 
 class Module:
     description = '< Placeholder for a description >'
+    module_types = [CModInfo.UserModule]
 
     wiki_page = ''
 
@@ -422,7 +423,7 @@ def find_open(modname):
         return (None, None)
 
 
-def load_module(modname, args, user, retmsg, modpython):
+def load_module(modname, args, module_type, user, retmsg, modpython):
     '''Returns 0 if not found, 1 on loading error, 2 on success'''
     if re.search(r'[^a-zA-Z0-9_]', modname) is not None:
         retmsg.s = 'Module names can only contain letters, numbers and ' \
@@ -436,13 +437,39 @@ def load_module(modname, args, user, retmsg, modpython):
             pymodule.__file__, modname)
         return 1
     cl = pymodule.__dict__[modname]
+
+    if module_type not in cl.module_types:
+        retmsg.s = "Module [{}] doesn't support type.".format(modname)
+        return 1
+
     module = cl()
-    module._cmod = CreatePyModule(user, modname, datapath, module, modpython)
+    if module_type == CModInfo.UserModule:
+        module._cmod = CreateUserPyModule(user, modname, datapath, module, modpython)
+    elif module_type == CModInfo.GlobalModule:
+        module._cmod = CreateGlobalPyModule(modname, datapath, module, modpython)
+    else:
+        retmsg.s = "Module [modpython] doesn't support module type."
+        return 1
+
     module.nv = ModuleNV(module._cmod)
     module.SetDescription(cl.description)
     module.SetArgs(args)
     module.SetModPath(pymodule.__file__)
-    user.GetModules().push_back(module._cmod)
+    module.SetType(module_type)
+
+    if module_type == CModInfo.UserModule:
+        if not user:
+            retmsg.s = "Module [modpython] needs user for for UserModule."
+            unload_module(module)
+            return 1
+        user.GetModules().push_back(module._cmod)
+    elif module_type == CModInfo.GlobalModule:
+        CZNC.Get().GetModules().push_back(module._cmod)
+    else:
+        retmsg.s = "Module [modpython] doesn't support module type."
+        unload_module(module)
+        return 1
+
     try:
         loaded = True
         if not module.OnLoad(args, retmsg):
@@ -482,8 +509,11 @@ def load_module(modname, args, user, retmsg, modpython):
 def unload_module(module):
     module.OnShutdown()
     cmod = module._cmod
+    if module.GetType() == CModInfo.UserModule:
+        cmod.GetUser().GetModules().removeModule(cmod)
+    elif module.GetType() == CModInfo.GlobalModule:
+        CZNC.Get().GetModules().removeModule(cmod)
     del module._cmod
-    cmod.GetUser().GetModules().removeModule(cmod)
     cmod.DeletePyModule()
     del cmod
 
@@ -498,7 +528,8 @@ def get_mod_info(modname, retmsg, modinfo):
             pymodule.__file__, modname)
         return 1
     cl = pymodule.__dict__[modname]
-    modinfo.SetGlobal(False)
+    for module_type in cl.module_types:
+        modinfo.AddType(module_type)
     modinfo.SetDescription(cl.description)
     modinfo.SetWikiPage(cl.wiki_page)
     modinfo.SetName(modname)
@@ -526,11 +557,13 @@ def get_mod_info_path(path, modname, modinfo):
     if modname not in pymodule.__dict__:
         return 0
     cl = pymodule.__dict__[modname]
-    modinfo.SetGlobal(False)
     modinfo.SetDescription(cl.description)
     modinfo.SetWikiPage(cl.wiki_page)
     modinfo.SetName(modname)
     modinfo.SetPath(pymodule.__file__)
+    for module_type in cl.module_types:
+        modinfo.AddType(module_type)
+
     return 1
 
 

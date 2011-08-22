@@ -9,6 +9,7 @@
 %module znc_core %{
 #include <utility>
 #include "../Utils.h"
+#include "../Config.h"
 #include "../Socket.h"
 #include "../Modules.h"
 #include "../Nick.h"
@@ -73,11 +74,21 @@ namespace std {
 	}
 }
 
+%typemap(out) CString&, CString* {
+	if ($1) {
+		$result = CPyRetString::wrap(*$1);
+	} else {
+		$result = Py_None;
+		Py_INCREF(Py_None);
+	}
+}
+
 #define u_short unsigned short
 #define u_int unsigned int
 #include "../ZNCString.h"
 %include "../defines.h"
 %include "../Utils.h"
+%include "../Config.h"
 %include "../Csocket.h"
 %template(ZNCSocketManager) TSocketManager<CZNCSock>;
 %include "../Socket.h"

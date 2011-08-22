@@ -12,9 +12,9 @@
 
 #define MESSAGE "Your account has been disabled. Contact your administrator."
 
-class CBlockUser : public CGlobalModule {
+class CBlockUser : public CModule {
 public:
-	GLOBALMODCONSTRUCTOR(CBlockUser) {}
+	MODCONSTRUCTOR(CBlockUser) {}
 
 	virtual ~CBlockUser() {}
 

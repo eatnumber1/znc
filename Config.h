@@ -9,6 +9,7 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+#include "zncconfig.h"
 #include "ZNCString.h"
 
 class CFile;
@@ -46,6 +47,26 @@ public:
 		return m_SubConfigs.end();
 	}
 
+	void AddKeyValuePair(const CString& sName, const CString& sValue) {
+		if (sName.empty() || sValue.empty()) {
+			return;
+		}
+
+		m_ConfigEntries[sName].push_back(sValue);
+	}
+
+	bool AddSubConfig(const CString& sTag, const CString& sName, CConfig Config) {
+		SubConfig &conf = m_SubConfigs[sTag];
+		SubConfig::const_iterator it = conf.find(sName);
+
+		if (it != conf.end()) {
+			return false;
+		}
+
+		conf[sName] = Config;
+		return true;
+	}
+
 	bool FindStringVector(const CString& sName, VCString& vsList) {
 		EntryMap::iterator it = m_ConfigEntries.find(sName);
 		vsList.clear();
@@ -56,9 +77,9 @@ public:
 		return true;
 	}
 
-	bool FindStringEntry(const CString& sName, CString& sRes) {
+	bool FindStringEntry(const CString& sName, CString& sRes, const CString& sDefault = "") {
 		EntryMap::iterator it = m_ConfigEntries.find(sName);
-		sRes.clear();
+		sRes = sDefault;
 		if (it == m_ConfigEntries.end() || it->second.empty())
 			return false;
 		sRes = it->second.front();
@@ -66,6 +87,26 @@ public:
 		if (it->second.empty())
 			m_ConfigEntries.erase(it);
 		return true;
+	}
+
+	bool FindBoolEntry(const CString& sName, bool& bRes, bool bDefault = false) {
+		CString s;
+		if (FindStringEntry(sName, s)) {
+			bRes = s.ToBool();
+			return true;
+		}
+		bRes = bDefault;
+		return false;
+	}
+
+	bool FindUIntEntry(const CString& sName, unsigned int& uRes, unsigned int uDefault = 0) {
+		CString s;
+		if (FindStringEntry(sName, s)) {
+			uRes = s.ToUInt();
+			return true;
+		}
+		uRes = uDefault;
+		return false;
 	}
 
 	bool FindSubConfig(const CString& sName, SubConfig& Config) {
@@ -84,6 +125,7 @@ public:
 	}
 
 	bool Parse(CFile& file, CString& sErrorMsg);
+	void Write(CFile *pFile, unsigned int iIndentation = 0);
 
 private:
 	EntryMap m_ConfigEntries;

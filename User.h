@@ -48,8 +48,7 @@ public:
 		return CUtils::SaltedSHA256Hash(sPass, sSalt);
 	}
 
-	bool PrintLine(CFile& File, CString sName, CString sValue) const;
-	bool WriteConfig(CFile& File);
+	CConfig ToConfig();
 	CChan* FindChan(const CString& sName) const;
 	bool AddChan(CChan* pChan);
 	bool AddChan(const CString& sName, bool bInConfig);
@@ -115,6 +114,9 @@ public:
 
 	CString GetLocalIP();
 	CString GetLocalDCCIP();
+
+	/** This method will return whether the user is connected and authenticated to an IRC server.
+	 */
 	bool IsIRCConnected() const;
 	void SetIRCSocket(CIRCSock* pIRCSock);
 	void IRCDisconnected();

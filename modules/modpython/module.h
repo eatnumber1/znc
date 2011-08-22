@@ -23,8 +23,15 @@ class CPyModule : public CModule {
 	CModPython* m_pModPython;
 	VWebSubPages* _GetSubPages();
 public:
+	CPyModule(const CString& sModName, const CString& sDataPath,
+			PyObject* pyObj, CModule* pModPython)
+			: CModule(NULL, NULL, sModName, sDataPath) {
+		m_pyObj = pyObj;
+		Py_INCREF(pyObj);
+		m_pModPython = reinterpret_cast<CModPython*>(pModPython);
+	}
 	CPyModule(CUser* pUser, const CString& sModName, const CString& sDataPath,
-			PyObject* pyObj, CGlobalModule* pModPython)
+			PyObject* pyObj, CModule* pModPython)
 			: CModule(NULL, pUser, sModName, sDataPath) {
 		m_pyObj = pyObj;
 		Py_INCREF(pyObj);
@@ -108,14 +115,19 @@ public:
 	virtual void OnServerCapResult(const CString& sCap, bool bSuccess);
 	virtual EModRet OnTimerAutoJoin(CChan& Channel);
 	bool OnEmbeddedWebRequest(CWebSock&, const CString&, CTemplate&);
+	EModRet OnModuleLoading(const CString& sModName, const CString& sArgs, CModInfo::EModuleType eType, bool& bSuccess, CString& sRetMsg);
 };
 
 static inline CPyModule* AsPyModule(CModule* p) {
 	return dynamic_cast<CPyModule*>(p);
 }
 
-inline CPyModule* CreatePyModule(CUser* pUser, const CString& sModName, const CString& sDataPath, PyObject* pyObj, CGlobalModule* pModPython) {
+inline CPyModule* CreateUserPyModule(CUser* pUser, const CString& sModName, const CString& sDataPath, PyObject* pyObj, CModule* pModPython) {
 	return new CPyModule(pUser, sModName, sDataPath, pyObj, pModPython);
+}
+
+inline CPyModule* CreateGlobalPyModule(const CString& sModName, const CString& sDataPath, PyObject* pyObj, CModule* pModPython) {
+	return new CPyModule(sModName, sDataPath, pyObj, pModPython);
 }
 
 class CPyTimer : public CTimer {

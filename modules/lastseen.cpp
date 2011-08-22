@@ -14,7 +14,7 @@ using std::map;
 using std::pair;
 using std::multimap;
 
-class CLastSeenMod : public CGlobalModule {
+class CLastSeenMod : public CModule {
 private:
 	time_t GetTime(const CUser *pUser) {
 		return GetNV(pUser->GetUserName()).ToULong();
@@ -61,7 +61,7 @@ private:
 	}
 
 public:
-	GLOBALMODCONSTRUCTOR(CLastSeenMod) {
+	MODCONSTRUCTOR(CLastSeenMod) {
 		AddHelpCommand();
 		AddCommand("Show", static_cast<CModCommand::ModCmdFunc>(&CLastSeenMod::ShowCommand));
 	}

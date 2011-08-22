@@ -9,9 +9,9 @@
 #include "znc.h"
 #include "User.h"
 
-class CNotifyConnectMod : public CGlobalModule {
+class CNotifyConnectMod : public CModule {
 public:
-	GLOBALMODCONSTRUCTOR(CNotifyConnectMod) {}
+	MODCONSTRUCTOR(CNotifyConnectMod) {}
 
 	virtual void OnClientLogin() {
 		SendAdmins(m_pUser->GetUserName() + " attached (from " + m_pClient->GetRemoteIP() + ")");

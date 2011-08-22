@@ -334,7 +334,7 @@ void CWebSock::SetVars() {
 	GetSession()->ClearMessageLoops();
 
 	// Global Mods
-	CGlobalModules& vgMods = CZNC::Get().GetModules();
+	CModules& vgMods = CZNC::Get().GetModules();
 	for (unsigned int a = 0; a < vgMods.size(); a++) {
 		AddModLoop("GlobalModLoop", *vgMods[a]);
 	}
@@ -639,7 +639,7 @@ CWebSock::EPageReqResult CWebSock::OnPageRequestInternal(const CString& sURI, CS
 		} else if (pModule->WebRequiresAdmin() && !GetSession()->IsAdmin()) {
 			PrintErrorPage(403, "Forbidden", "You need to be an admin to access this module");
 			return PAGE_DONE;
-		} else if (!pModule->IsGlobal() && pModule->GetUser() != GetSession()->GetUser()) {
+		} else if (pModule->GetType() != CModInfo::GlobalModule && pModule->GetUser() != GetSession()->GetUser()) {
 			PrintErrorPage(403, "Forbidden", "You must login as " + pModule->GetUser()->GetUserName() + " in order to view this page");
 			return PAGE_DONE;
 		} else if (pModule->OnWebPreRequest(*this, m_sPage)) {
@@ -659,7 +659,7 @@ CWebSock::EPageReqResult CWebSock::OnPageRequestInternal(const CString& sURI, CS
 			}
 		}
 
-		if (pModule && !pModule->IsGlobal() && (!IsLoggedIn() || pModule->GetUser() != GetSession()->GetUser())) {
+		if (pModule && pModule->GetType() != CModInfo::GlobalModule && (!IsLoggedIn() || pModule->GetUser() != GetSession()->GetUser())) {
 			AddModLoop("UserModLoop", *pModule);
 		}
 
